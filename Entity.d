@@ -9,6 +9,8 @@ import std.string;
 import std.typecons;
 import std.variant;
 
+import gl3n.linalg;
+
 
 unittest
 {
@@ -17,10 +19,10 @@ unittest
   
   Entity entity;
   entity.name = "test";
-  entity.position = [1.0, 2.0];
+  entity.position = vec2(1.0, 2.0);
   
   assert(entity.name == "test");
-  assert(entity.position == [1.0, 2.0]);
+  assert(entity.position == vec2(1.0, 2.0), "Expected " ~ to!string(vec2(1.0, 2.0)) ~ ", got " ~ to!string(entity.position));
   
   Entity childEntity;
   childEntity.name = "child";
@@ -40,16 +42,24 @@ unittest
   assert(entities[0]["name"] == "parent", "Expected parent, got " ~ to!string(entities[0]["name"]));
   assert(entities[0]["position"].get!(float[]) == [1.0, 2.0]);//, "Expected " ~ to!string([1.0, 2.0]) ~ ", got " ~ to!string(entities[0]["position"]) ~ " of type " ~ to!string(typeid(entities[0]["position"])));
   
-  assert(entities[0].name == "parent");
-  assert(entities[0].position == [1.0, 2.0]);
+  assert(entities[0].name == "parent", "Expected \"parent\", got \"" ~ to!string(entities[0].name) ~ "\"");
+  assert(entities[0].position == vec2(1.0, 2.0));
   assert(entities[0].children[0].name == "child");
 }
 
 
 template keyToType(string key, string type)
 {
-  const char[] keyToType = `@property ` ~ type ~ ` ` ~ key ~ `() { assert(values["` ~ key ~ `"].hasValue()); assert(values["` ~ key ~ `"].peek!(` ~ type ~ `) !is null); return values["` ~ key ~ `"].get!(` ~ type ~ `); }` ~
-                           `@property ` ~ type ~ ` ` ~ key ~ `(` ~ type ~ ` value) { values["` ~ key ~ `"] = value; return values["` ~ key ~ `"].get!(` ~ type ~ `); }`;
+  static if (type == "vec2")
+  {
+    const char[] keyToType = `@property ` ~ type ~ ` ` ~ key ~ `() { return vec2(values["` ~ key ~ `"].get!(float[])); }` ~
+                             `@property ` ~ type ~ ` ` ~ key ~ `(` ~ type ~ ` value) { float[] vector = value.vector; values["` ~ key ~ `"] = vector; return value; }`;
+  }
+  else
+  {
+    const char[] keyToType = `@property ` ~ type ~ ` ` ~ key ~ `() { assert(values["` ~ key ~ `"].hasValue()); assert(values["` ~ key ~ `"].peek!(` ~ type ~ `) !is null); return values["` ~ key ~ `"].get!(` ~ type ~ `); }` ~
+                             `@property ` ~ type ~ ` ` ~ key ~ `(` ~ type ~ ` value) { values["` ~ key ~ `"] = value; return values["` ~ key ~ `"].get!(` ~ type ~ `); }`;
+  }
 }
 
 struct Entity
@@ -59,7 +69,8 @@ struct Entity
   alias values this;
   
   mixin(keyToType!("name", "string"));
-  mixin(keyToType!("position", "float[]"));
+  mixin(keyToType!("position", "vec2"));
+  mixin(keyToType!("velocity", "vec2"));
   mixin(keyToType!("children", "Entity[]"));
 }
 
